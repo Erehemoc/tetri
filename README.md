@@ -26,7 +26,7 @@
 | `i18n.js` | UI strings in KA / RU / EN |
 | `index.html` | Layout and styles. One third-party script: `qrcode-generator` from cdnjs, pinned with SRI |
 
-The free public RPC is enough for a few sales an hour. A busy till can paste its own endpoint (for example a free Helius key) under **Advanced**.
+By default the page uses PublicNode's free Solana RPC, which accepts requests from web pages; `api.mainnet-beta.solana.com` is a fallback, since it refuses browser requests for `getSignaturesForAddress`. That's enough for a few sales an hour. A busy till can paste its own endpoint (for example a free Helius key) under **Advanced**.
 
 ## Tests
 
