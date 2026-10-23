@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ka">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tetri — USDC till for Georgian shops</title>
+<meta name="description" content="Open-source Solana Pay till: type a price in lari, show a QR, get paid in USDC straight to your own wallet. No sign-up, no custody, no server.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='15' fill='%230f766e'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='sans-serif'>₾</text></svg>">
+<style>
+  :root { --bg:#f6f5f1; --card:#fff; --ink:#1c1b18; --muted:#6b6860; --line:#e4e1d8; --acc:#0f766e; --acc-ink:#fff; --ok:#15803d; --warn:#b45309; --bad:#b91c1c; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141412; --card:#1d1d1a; --ink:#f1efe8; --muted:#a29e94; --line:#33322d; --acc:#2dd4bf; --acc-ink:#062b27; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui, -apple-system, "Segoe UI", "Noto Sans Georgian", sans-serif; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; max-width:720px; margin:0 auto; }
+  .brand { font-weight:700; font-size:20px; letter-spacing:.2px; }
+  .brand small { font-weight:400; color:var(--muted); font-size:13px; margin-left:6px; }
+  .langs { display:flex; gap:4px; flex:0 0 auto; }
+  @media (max-width: 480px) { .brand small { display:block; margin-left:0; } }
+  .langs button { border:1px solid var(--line); background:transparent; color:var(--muted); padding:4px 8px; border-radius:6px; font-size:13px; cursor:pointer; }
+  .langs button[aria-pressed=true] { color:var(--ink); border-color:var(--ink); }
+  main { max-width:720px; margin:0 auto; padding:0 16px 40px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin:12px 0; }
+  h2 { font-size:17px; margin:0 0 12px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input { width:100%; padding:11px 12px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:transparent; color:var(--ink); }
+  input:focus { outline:2px solid var(--acc); outline-offset:1px; }
+  .amount { font-size:34px; font-weight:700; text-align:center; letter-spacing:.5px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .row > * { flex:1 1 0; }
+  button.primary { width:100%; margin-top:14px; padding:14px; font-size:17px; font-weight:600; border:0; border-radius:12px; background:var(--acc); color:var(--acc-ink); cursor:pointer; }
+  button.ghost { padding:9px 12px; font-size:14px; border:1px solid var(--line); border-radius:10px; background:transparent; color:var(--ink); cursor:pointer; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .hint { color:var(--muted); font-size:13px; margin-top:8px; }
+  .err { color:var(--bad); font-size:14px; margin-top:8px; min-height:1em; }
+  #qr { display:flex; justify-content:center; margin:10px 0; }
+  #qr svg { width:min(78vw, 320px); height:auto; background:#fff; padding:10px; border-radius:12px; }
+  .big { text-align:center; font-size:22px; font-weight:700; }
+  .sub { text-align:center; color:var(--muted); font-size:14px; }
+  .status { text-align:center; font-weight:600; margin-top:10px; }
+  .status.wait { color:var(--warn); } .status.ok { color:var(--ok); font-size:22px; } .status.bad { color:var(--bad); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  a { color:var(--acc); }
+  details summary { cursor:pointer; color:var(--muted); font-size:14px; }
+  footer { max-width:720px; margin:0 auto; padding:0 16px 30px; color:var(--muted); font-size:13px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">₾ Tetri <small data-i18n="tagline"></small></div>
+  <div class="langs" role="group" aria-label="Language">
+    <button data-lang="ka">KA</button><button data-lang="en">EN</button><button data-lang="ru">RU</button>
+  </div>
+</header>
+<main>
+  <section class="card" id="setup">
+    <h2 data-i18n="setupTitle"></h2>
+    <label for="shop" data-i18n="shopName"></label>
+    <input id="shop" autocomplete="organization" maxlength="40">
+    <label for="wallet" data-i18n="wallet"></label>
+    <input id="wallet" autocomplete="off" spellcheck="false" placeholder="e.g. 7xKX…">
+    <div class="err" id="setupErr"></div>
+    <details><summary data-i18n="advanced"></summary>
+      <label for="rpc" data-i18n="rpc"></label>
+      <input id="rpc" spellcheck="false" placeholder="https://api.mainnet-beta.solana.com">
+      <div class="hint" data-i18n="rpcHint"></div>
+    </details>
+    <button class="primary" id="saveSetup" data-i18n="save"></button>
+    <div class="hint" data-i18n="setupHint"></div>
+  </section>
+
+  <section class="card hidden" id="charge">
+    <div class="row" style="align-items:center">
+      <h2 style="margin:0" id="shopTitle"></h2>
+      <div style="flex:0 0 auto"><button class="ghost" id="editSetup" data-i18n="edit"></button></div>
+    </div>
+    <label for="gel" data-i18n="amountGel"></label>
+    <input id="gel" class="amount" inputmode="decimal" placeholder="0.00">
+    <label for="note" data-i18n="note"></label>
+    <input id="note" maxlength="60">
+    <div class="hint" id="rateLine"></div>
+    <div class="err" id="chargeErr"></div>
+    <button class="primary" id="makeQr" data-i18n="showQr"></button>
+  </section>
+
+  <section class="card hidden" id="pay">
+    <div class="big" id="payUsdc"></div>
+    <div class="sub" id="payGel"></div>
+    <div id="qr"></div>
+    <div class="sub" data-i18n="scanHint"></div>
+    <div class="status wait" id="payStatus"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="ghost" id="copyLink" data-i18n="copyLink"></button>
+      <button class="ghost" id="cancelPay" data-i18n="newSale"></button>
+    </div>
+  </section>
+
+  <section class="card" id="history">
+    <div class="row" style="align-items:center">
+      <h2 style="margin:0" data-i18n="today"></h2>
+      <div style="flex:0 0 auto"><button class="ghost" id="exportCsv" data-i18n="exportCsv"></button></div>
+    </div>
+    <table><thead><tr><th data-i18n="time"></th><th class="num">₾</th><th class="num">USDC</th><th data-i18n="tx"></th></tr></thead><tbody id="rows"></tbody></table>
+    <div class="hint" id="emptyHist" data-i18n="empty"></div>
+  </section>
+</main>
+<footer>
+  <span data-i18n="footer"></span> · <a href="https://github.com/Erehemoc/tetri" target="_blank" rel="noopener">GitHub</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1" crossorigin="anonymous"></script>
+<script src="core.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
