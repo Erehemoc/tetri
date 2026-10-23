@@ -3,7 +3,9 @@
   "use strict";
   const T = self.Tetri, I18N = self.TETRI_I18N;
   const $ = (id) => document.getElementById(id);
-  const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
+  // Public endpoints that accept requests from web pages. api.mainnet-beta.solana.com answers
+  // "403 Access forbidden" to browser origins for getSignaturesForAddress, so it is only a fallback.
+  const DEFAULT_RPCS = ["https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com"];
   const RATE_URL = "https://api.coingecko.com/api/v3/simple/price?ids=usd-coin&vs_currencies=gel";
 
   const store = {
@@ -97,13 +99,19 @@
   function setStatus(kind, text) { const s = $("payStatus"); s.className = "status " + kind; s.textContent = text; }
 
   async function rpc(method, params) {
-    const r = await fetch(cfg.rpc || DEFAULT_RPC, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    });
-    const j = await r.json();
-    if (j.error) throw new Error(j.error.message);
-    return j.result;
+    let last;
+    for (const url of cfg.rpc ? [cfg.rpc] : DEFAULT_RPCS) {
+      try {
+        const r = await fetch(url, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+        });
+        const j = await r.json();
+        if (j.error) throw new Error(j.error.message);
+        return j.result;
+      } catch (e) { last = e; }
+    }
+    throw last;
   }
 
   function startPolling() {
